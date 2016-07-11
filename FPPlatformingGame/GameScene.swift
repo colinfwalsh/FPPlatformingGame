@@ -62,21 +62,9 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         groundTexture.filteringMode = .Nearest //No idea what this does - something with size?  Compatability?
         
+        runningVelocity = 0.1
         
-        var i = CGFloat(0.0)
-        
-        let lessThanValue = 2.0 + self.frame.size.width / (groundTexture.size().width)
-        
-        
-        self.isTouched = true
-        
-        while i < lessThanValue {
-            let sprite = SKSpriteNode(texture: groundTexture)
-            sprite.position = CGPoint(x: i * sprite.size.width, y: sprite.size.height / 4) //Creates a sprite for the ground the width of the sprite picture, with the height of the picture divided by 2
-            sprite.runAction(animateGroundStill())
-            moving.addChild(sprite)
-            i += 1
-        }
+        animateGround(runningVelocity)
         
         
         //Essentially creates the loop to repeat the ground action as long as the lessThanValue is true
@@ -140,11 +128,15 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             }), SKAction.waitForDuration(NSTimeInterval(0.05))]), count:4), SKAction.runBlock({
                 self.canRestart = true
             })]), withKey: "flash")
-        
+            
+                man.removeAllActions()
+                moving.removeAllActions()
                 }
     }
     
     override func touchesBegan(touches: Set<UITouch>, withEvent event: UIEvent?) {
+        
+        runningVelocity = 0.1
         
         var i = CGFloat(0.0)
         
@@ -154,13 +146,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
        // self.isTouched = true
         
-        while i < lessThanValue {
-            let sprite = SKSpriteNode(texture: groundTexture)
-            sprite.position = CGPoint(x: i * sprite.size.width, y: sprite.size.height / 4) //Creates a sprite for the ground the width of the sprite picture, with the height of the picture divided by 2
-            sprite.runAction(animateGroundForever())
-            moving.addChild(sprite)
-            i += 1
-        }
+      
         
         walkingMan(runningVelocity)
         
@@ -180,28 +166,33 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
     }
     
+    func animateGround(runningRate: Double) {
+        let moveGroundsprite = SKAction.moveByX(-groundTexture.size().width * 2.0, y: 0, duration: NSTimeInterval(runningRate * Double(groundTexture.size().width / 2))) //So this is just a formula for how fast the groundtexture moves accross the scene
+        let resetGroundSprite = SKAction.moveByX(groundTexture.size().width * 2.0, y: 0, duration: 0.0) //Creates a new sprite at the old sprites position - I think
+        
+        let moveGroundSpritesForever = SKAction.repeatActionForever(SKAction.sequence([moveGroundsprite, resetGroundSprite]))  //Takes both sequences and repeats them forever
+        
+        var i = CGFloat(0.0)
+        
+        let lessThanValue = 2.0 + self.frame.size.width / (groundTexture.size().width)
+        
+        while i < lessThanValue {
+            let sprite = SKSpriteNode(texture: groundTexture)
+            sprite.position = CGPoint(x: i * sprite.size.width, y: sprite.size.height / 4) //Creates a sprite for the ground the width of the sprite picture, with the height of the picture divided by 2
+            sprite.runAction(moveGroundSpritesForever)
+            moving.addChild(sprite)
+            i += 1
+        }
+        }
+    
     func walkingMan(runningRate: Double) {
         let anim = SKAction.animateWithTextures([SKTexture(imageNamed:"man1"), SKTexture(imageNamed:"man2"), SKTexture(imageNamed:"man3"), SKTexture(imageNamed:"man4")], timePerFrame: runningRate)
         let run = SKAction.repeatActionForever(anim)
         man.runAction(run)
     }
     
-    func animateGroundStill() -> SKAction{
-        
-        let moveGroundsprite = SKAction.moveByX(-groundTexture.size().width * 2.0, y: 0, duration: NSTimeInterval(runningVelocity * Double(groundTexture.size().width / 2))) //So this is just a formula for how fast the groundtexture moves accross the scene
-        let resetGroundSprite = SKAction.moveByX(groundTexture.size().width * 2.0, y: 0, duration: 0.0) //Creates a new sprite at the old sprites position - I think
-        
-        let moveGroundSpriteAbit = SKAction.repeatAction(SKAction.sequence([moveGroundsprite, resetGroundSprite]), count: 0)
-        return moveGroundSpriteAbit
-    }
     
-    func animateGroundForever() -> SKAction{
-        let moveGroundsprite = SKAction.moveByX(-groundTexture.size().width * 2.0, y: 0, duration: NSTimeInterval(runningVelocity * Double(groundTexture.size().width / 2))) //So this is just a formula for how fast the groundtexture moves accross the scene
-        let resetGroundSprite = SKAction.moveByX(groundTexture.size().width * 2.0, y: 0, duration: 0.0) //Creates a new sprite at the old sprites position - I think
-        
-        let moveGroundSpritesForever = SKAction.repeatActionForever(SKAction.sequence([moveGroundsprite, resetGroundSprite]))  //Takes both sequences and repeats them forever
-        return moveGroundSpritesForever
-    }
+
 }
 
 
