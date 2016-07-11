@@ -8,176 +8,152 @@
 
 import SpriteKit
 
-//var megaMan : SKSpriteNode!
-//var megaManWalking : [SKTexture]!
-
-
-
 
 class GameScene: SKScene, SKPhysicsContactDelegate {
     
-    // Layered Nodes
-   // var backgroundNode: SKNode!
-    var midgroundNode: SKNode!
-    var foregroundNode: SKNode!
-    var hudNode: SKNode!
+    var man: SKSpriteNode!
+    //var ground: SKSpriteNode!
+    var skyColor: SKColor!
+    var moving: SKNode!
     
-    // Player
-    var player: SKNode!
+    var scoreLabelNode:SKLabelNode!
+    var score = NSInteger()
     
-    // To Accommodate iPhone 6
-    var scaleFactor: CGFloat!
+    var runningVelocity : CGFloat = 0.0
     
-    // Tap To Start node
-    let tapToStartNode = SKSpriteNode(imageNamed: "TapToStart")
+    var canRestart : Bool = false
     
     
-    required init?(coder aDecoder: NSCoder) {
-        super.init(coder: aDecoder)
-    }
     
-    override init(size: CGSize) {
-        super.init(size: size)
-        backgroundColor = SKColor.blackColor()
-        
-        scaleFactor = self.size.width / 320.0
-        
-        // Create the game nodes
-        // Background
-//        backgroundNode = createBackgroundNode()
-//        addChild(backgroundNode)
-        
-        // Foreground
-        foregroundNode = SKNode()
-        addChild(foregroundNode)
-        
-        // Add the player
-        player = createPlayer()
-        foregroundNode.addChild(player)
-        
-        // Add some gravity
-        physicsWorld.gravity = CGVector(dx: 0.0, dy: -2.0)
-        
-        // HUD
-        hudNode = SKNode()
-        addChild(hudNode)
-        
-        // Tap to Start
-        tapToStartNode.position = CGPoint(x: self.size.width / 2, y: 180.0)
-        hudNode.addChild(tapToStartNode)
-        
-        let platform = createPlatformAtPosition(CGPoint(x: CGRectGetMidX(self.frame), y: CGRectGetMidY(self.frame)), ofType: .Normal)
-        foregroundNode.addChild(platform)
-    }
+    //No idea what these do, got it from the Flappy Bird source code
+    let manCategory: UInt32 = 1 << 0
+    let worldCategory: UInt32 = 1 << 0
+    let scoreCategory: UInt32 = 1 << 3
     
-//    func createBackgroundNode() -> SKNode {
-//        // 1
-//        // Create the node
-//        let backgroundNode = SKNode()
-//        let ySpacing = 64.0 * scaleFactor
-//        
-//        // 2
-//        // Go through images until the entire background is built
-//        for index in 0...19 {
-//            // 3
-//            let node = SKSpriteNode(imageNamed:String(format: "Background%02d", index + 1))
-//            // 4
-//            node.setScale(scaleFactor)
-//            node.anchorPoint = CGPoint(x: 0.5, y: 0.0)
-//            node.position = CGPoint(x: self.size.width / 2, y: ySpacing * CGFloat(index))
-//            //5
-//            backgroundNode.addChild(node)
-//        }
-//        
-//        // 6
-//        // Return the completed background node
-//        return backgroundNode
-//    }
-    
-    func createPlayer() -> SKNode {
-        let playerNode = SKNode()
-        playerNode.position = CGPoint(x: self.size.width / 2, y: 80.0)
+    override func didMoveToView(view: SKView) {
         
-        let sprite = SKSpriteNode(imageNamed: "man1")
-        playerNode.addChild(sprite)
+        //Setup physics - What is contact delegate?  Objects in the scene?
+        self.physicsWorld.gravity = CGVector(dx: 0.0, dy: -5.0)
+        self.physicsWorld.contactDelegate = self
         
-        // 1
-        playerNode.physicsBody = SKPhysicsBody(circleOfRadius: sprite.size.width / 2)
-        // 2
-        playerNode.physicsBody?.dynamic = false
-        // 3
-        playerNode.physicsBody?.allowsRotation = false
-        // 4
- 
-        playerNode.physicsBody?.restitution = 2.0
-        playerNode.physicsBody?.friction = 1.0
-        playerNode.physicsBody?.angularDamping = 10.0
-        playerNode.physicsBody?.linearDamping = 0.0
+        //Color for the sky, essentially background color
+        skyColor = SKColor(red: 81.0/255.0, green: 192.0/255.0, blue: 201.0/255.0, alpha: 1.0) //Alpha is what again?
+        self.backgroundColor = skyColor //backgroundColor is an inherent property on GameScene
         
-        // 1
-        playerNode.physicsBody?.usesPreciseCollisionDetection = true
-        // 2
-        playerNode.physicsBody?.categoryBitMask = CollisionCategoryBitmask.Player
-        // 3
-        playerNode.physicsBody?.collisionBitMask = 0
-        // 4
-        playerNode.physicsBody?.contactTestBitMask = CollisionCategoryBitmask.Star | CollisionCategoryBitmask.Platform
+        moving = SKNode() //Initializes moving with a default value
+        self.addChild(moving) //Adds a child node to the end of the reciever's list of child nodes?  That's the description - but what exactly does that mean?  Seems as if it adds the object into the scene to be displayed
         
-        return playerNode
-    }
-    
-    func createPlatformAtPosition(position: CGPoint, ofType type: PlatformType) -> PlatformNode {
-        // 1
-        let node = PlatformNode()
-        let thePosition = CGPoint(x: position.x * scaleFactor, y: position.y)
-        node.position = thePosition
-        node.name = "NODE_PLATFORM"
-        node.platformType = type
+        let groundTexture = SKTexture(imageNamed: "land") //Assigns a variable titled groundTexture to an SKTexture called Land - creates the ground texture
+        groundTexture.filteringMode = .Nearest //No idea what this does - something with size?  Compatability?
         
-        // 2
-        var sprite: SKSpriteNode
-        if type == .Break {
-            sprite = SKSpriteNode(imageNamed: "Spaceship")
-        } else {
-            sprite = SKSpriteNode(imageNamed: "Spaceship")
+        let moveGroundsprite = SKAction.moveByX(-groundTexture.size().width * 2.0, y: 0, duration: NSTimeInterval(0.002 * groundTexture.size().width * 2.0)) //Moves the ground sprite over, towards the left - Why does it multiply by 2.0?  And the .02 * groundTexture.size().width * 2.0?
+        let resetGroundSprite = SKAction.moveByX(groundTexture.size().width * 2.0, y: 0, duration: 0.0) //Creates a new sprite at the old sprites position
+        let moveGroundSpritesForever = SKAction.repeatActionForever(SKAction.sequence([moveGroundsprite, resetGroundSprite]))  //Takes both sequences and repeats them forever
+        
+        var i = CGFloat(0.0)
+        
+        let lessThanValue = 2.0 + self.frame.size.width / (groundTexture.size().width)
+        
+        //Essentially creates the loop to repeat the ground action as long as the lessThanValue is true
+        //What is the lessThanValue?  No idea - Going to try and add the megaman sprite here and see if it loops
+        
+        
+        while i < lessThanValue {
+            let sprite = SKSpriteNode(texture: groundTexture)
+            sprite.position = CGPoint(x: i * sprite.size.width, y: sprite.size.height / 4) //Creates a sprite for the ground the width of the sprite picture, with the height of the picture divided by 2
+            sprite.runAction(moveGroundSpritesForever)
+            moving.addChild(sprite)
+            i += 1
         }
-        node.addChild(sprite)
         
-        // 3
-        node.physicsBody = SKPhysicsBody(rectangleOfSize: sprite.size)
-        node.physicsBody?.dynamic = false
-        node.physicsBody?.categoryBitMask = CollisionCategoryBitmask.Platform
-        node.physicsBody?.collisionBitMask = 0
         
-        return node
+        //So far, with the build above, the ground will load indefinitely, looping through the ground animations
+        
+        //Setting up the megaman sprite
+        let manTexture1 = SKTexture(imageNamed: "man1")
+        manTexture1.filteringMode = .Nearest //Seems as if this is best practice for loading any texture
+        let manTexture2 = SKTexture(imageNamed: "man2")
+        
+        
+        let anim = SKAction.animateWithTextures([manTexture1, manTexture2], timePerFrame: 0.1)  //Creates and animation array with the above named textures
+        let run = SKAction.repeatActionForever(anim) //Creates an action to repeat forever, as long as the conditions are met
+        
+        
+        man = SKSpriteNode(texture: manTexture1)
+        man.setScale(0.8)
+        man.position = CGPoint(x: self.frame.size.width * 0.15, y: groundTexture.size().height + 0.5)
+        man.runAction(run)
+        
+        man.physicsBody = SKPhysicsBody(circleOfRadius: man.size.height / 2.0)
+        man.physicsBody?.dynamic = true
+        man.physicsBody?.allowsRotation = false
+        
+        
+        man.physicsBody?.categoryBitMask = manCategory
+        man.physicsBody?.collisionBitMask = worldCategory
+        man.physicsBody?.contactTestBitMask = worldCategory
+        
+        self.addChild(man)
+        
+        //Code from here to above, still no megaman sprite, maybe he needs to be rendered somehow?
+        
+        
+        //Creating the ground, for contact I guess?
+        let ground = SKNode()
+        
+        ground.position = CGPoint(x: 0, y: groundTexture.size().height / 16)
+        ground.physicsBody = SKPhysicsBody(rectangleOfSize: CGSize(width: self.frame.size.width, height: groundTexture.size().height))
+        ground.physicsBody?.dynamic = false
+        ground.physicsBody?.categoryBitMask = worldCategory
+        self.addChild(ground)
+        
+        //Same thing, just ground, no megaman, might be a fault with the code
+        
+        
+        
+        
+        
     }
     
+    
+    func didBeginContact(contact: SKPhysicsContact) {
+        //        if moving.speed > 0 {
+        //            if ( contact.bodyA.categoryBitMask & scoreCategory ) == scoreCategory || ( contact.bodyB.categoryBitMask & scoreCategory ) == scoreCategory {
+        //                // Bird has contact with score entity
+        //                score += 1
+        //                scoreLabelNode.text = String(score)
+        //
+        //                // Add a little visual feedback for the score increment
+        //                scoreLabelNode.runAction(SKAction.sequence([SKAction.scaleTo(1.5, duration:NSTimeInterval(0.1)), SKAction.scaleTo(1.0, duration:NSTimeInterval(0.1))]))
+        //            } else {
+        
+        // moving.speed = 0
+        
+        man.physicsBody?.collisionBitMask = worldCategory
+        //man.runAction(  SKAction.rotateByAngle(CGFloat(M_PI) * CGFloat(man.position.y) * 0.01, duration:1), completion:{self.man.speed = 0 })
+        
+        
+        // Flash background if contact is detected
+        self.removeActionForKey("flash")
+        self.runAction(SKAction.sequence([SKAction.repeatAction(SKAction.sequence([SKAction.runBlock({
+            self.backgroundColor = SKColor(red: 1, green: 0, blue: 0, alpha: 1.0)
+        }),SKAction.waitForDuration(NSTimeInterval(0.05)), SKAction.runBlock({
+            self.backgroundColor = self.skyColor
+        }), SKAction.waitForDuration(NSTimeInterval(0.05))]), count:4), SKAction.runBlock({
+            self.canRestart = true
+        })]), withKey: "flash")
+    }
     
     override func touchesBegan(touches: Set<UITouch>, withEvent event: UIEvent?) {
-        // 1
-        // If we're already playing, ignore touches
-        if player.physicsBody!.dynamic {
-            return
-        }
-        
-        // 2
-        // Remove the Tap to Start node
-        tapToStartNode.removeFromParent()
-        
-        // 3
-        // Start the player by putting them into the physics simulation
-        player.physicsBody?.dynamic = true
-        
-        // 4
-         player.physicsBody?.velocity = CGVector(dx: player.physicsBody!.velocity.dx, dy: 400.0)
+        man.physicsBody?.velocity = CGVector(dx: 0, dy: 0)
+        man.physicsBody?.applyImpulse(CGVector(dx: 0, dy: 500))
     }
     
-
- 
-
-    
-    
+    override func touchesEnded(touches: Set<UITouch>, withEvent event: UIEvent?) {
+        
+    }
 }
+
 
 //         IMPLEMENTATION OF THE SPRITE - DOESNT COMPILE AS OF YET
 //        var player: Player
@@ -255,58 +231,58 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 //        self.player = Player(imageNamed: "koalio_stand")
 //        self.walls = map.layerNamed("walls")
 //        super.init(size: size)
-//        
+//
 //        self.backgroundColor = SKColor(red: 0.4, green: 0.4, blue: 0.95, alpha: 1.0)
 //        self.addChild(self.map)
-//        
+//
 //        self.player.position = CGPointMake(100, 50)
 //        self.player.zPosition = 15
 //        self.map.addChild(self.player)
-//        
+//
 //        self.userInteractionEnabled = true
 //    }
-//    
+//
 //    required init?(coder aDecoder: NSCoder) {
 //        fatalError("init(coder:) has not been implemented")
 //    }
-//    
+//
 //    override func update(currentTime: NSTimeInterval) {
 //        var delta = currentTime - self.previousUpdateTime
 //        if delta > 0.02 {
 //            delta = 0.02
 //        }
-//        
+//
 //        self.previousUpdateTime = currentTime
 //        self.player.update(delta)
-//        
+//
 //        self.checkForAndResolveCollisionsForPlayer(player, layer: walls)
 //        self.setViewpointCenter(self.player.position)
 //    }
-//    
+//
 //    func tileRectFromTileCoords(coords: CGPoint) -> CGRect {
 //        let levelHeight = self.map.mapSize.height * self.map.tileSize.height
 //        let origin = CGPointMake(coords.x * self.map.tileSize.width, levelHeight - ((coords.y + 1) * (self.map.tileSize.height)))
 //        return CGRectMake(origin.x, origin.y, self.map.tileSize.width, self.map.tileSize.height)
 //    }
-//    
+//
 //    func tileGIDAtCoordinate(coord: CGPoint, layer: TMXLayer) -> Int {
 //        let info = layer.layerInfo
 //        return info.tileGidAtCoord(coord)
 //    }
-//    
+//
 //    func checkForAndResolveCollisionsForPlayer(player: Player, layer: TMXLayer) {
 //        player.onGround = false
 //        for index in [7, 1, 3, 5, 0, 2, 6, 8] {
 //            let playerBox = player.collisionBoundingBox()
 //            let playerCoord = layer.coordForPoint(player.desiredPosition)
-//            
+//
 //            let column = index % 3
 //            let row = index / 3
 //            let tileCoord = CGPointMake(playerCoord.x + CGFloat(column - 1), playerCoord.y + CGFloat(row - 1))
 //            let gid = self.tileGIDAtCoordinate(tileCoord, layer: layer)
 //            if (gid > 0) {
 //                let tileRect = self.tileRectFromTileCoords(tileCoord)
-//                
+//
 //                if (CGRectIntersectsRect(playerBox, tileRect)) {
 //                    let intersection = CGRectIntersection(playerBox, tileRect).size
 //                    switch(index) {
@@ -335,26 +311,26 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 //                            player.desiredPosition = CGPointMake(player.desiredPosition.x  + width, player.desiredPosition.y)
 //                        }
 //                    }
-//                    
+//
 //                }
 //            }
 //        }
 //        player.position = player.desiredPosition
 //    }
-//    
+//
 //    func setViewpointCenter(center: CGPoint) {
 //        var x = max(center.x, self.size.width / 2)
 //        var y = max(center.y, self.size.height / 2)
-//        
+//
 //        x = min(x, (self.map.mapSize.width * self.map.tileSize.width) - self.size.width / 2)
 //        y = min(y, (self.map.mapSize.height * self.map.tileSize.height) - self.size.height / 2)
-//        
+//
 //        let position = CGPointMake(x, y)
 //        let center = CGPointMake(self.size.width / 2, self.size.height / 2)
 //        let viewPoint = CGPointSubtract(center, position)
 //        self.map.position = viewPoint
 //    }
-//    
+//
 //    override func touchesBegan(touches: Set<UITouch>, withEvent event: UIEvent?) {
 //        for touchObject in touches {
 //            let touch = touchObject
@@ -366,13 +342,13 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 //            }
 //        }
 //    }
-//    
+//
 //    override func touchesMoved(touches: Set<UITouch>, withEvent event: UIEvent?) {
 //        let halfWidth = self.size.width / 2.0
 //        for touchObject in touches {
 //            let touch = touchObject
 //            let location = touch.locationInNode(self)
-//            
+//
 //            let previousLocation = touch.previousLocationInNode(self)
 //            if location.x > halfWidth && previousLocation.x <= halfWidth {
 //                self.player.moving = false
@@ -383,7 +359,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 //            }
 //        }
 //    }
-//    
+//
 //    override func touchesEnded(touches: Set<UITouch>, withEvent event: UIEvent?) {
 //        for touchObject in touches {
 //            let touch = touchObject
@@ -395,5 +371,4 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
 //            }
 //        }
 //    }
-//    
-
+//
