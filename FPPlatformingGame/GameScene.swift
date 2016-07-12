@@ -8,392 +8,630 @@
 
 import SpriteKit
 
-//var megaMan : SKSpriteNode!
-//var megaManWalking : [SKTexture]!
-
-
-
 
 class GameScene: SKScene, SKPhysicsContactDelegate {
     
-    // Layered Nodes
-   // var backgroundNode: SKNode!
-    var midgroundNode: SKNode!
-    var foregroundNode: SKNode!
-    var hudNode: SKNode!
+    var man: SKSpriteNode!
     
-    // Player
-    var player: SKNode!
+    var manRunning: SKAction!
     
-    // To Accommodate iPhone 6
-    var scaleFactor: CGFloat!
+    var skyColor: SKColor!
     
-    // Tap To Start node
-    let tapToStartNode = SKSpriteNode(imageNamed: "TapToStart")
+    var moving: SKNode!
+    
+    var distanceTraveled: CGFloat!
+    
+    let groundTexture = SKTexture(imageNamed: "land")
+    
+    //Status Properties-KC
+    
+    var canRestart : Bool = false
+    
+    var isTouched = false
+    
+    var gravityCounter = 0
+    
+    var touchLength = 0.0
+    
+    //Timers-KC
+    
+    var speedTimer: NSTimer!
+    
+    var airTimer: NSTimer!
+    
+    //Forces-KC
+    
+    var runningVelocity : Double = 0.4
+    
+    var groundVelocity: Double = 0.2
+    
+    var xForceToApply = 50.0
+    
+    var yForceToApply = 300.0
+    
+    var xGravity = 0.0
+    
+    var yGravity = -9.8
+    
+    var xVelocity = 0.0
+    
+    var yVelocity = 0.0
+    
+    //Buttons-KC
+    
+    let playButton = SKSpriteNode(imageNamed:"flatironmanlogo")
+    
+    let resetButton = SKSpriteNode(imageNamed:"restart")
+    
+    let gravityButton = SKSpriteNode(imageNamed:"grav_button")
+    
+    let velocityButton = SKSpriteNode(imageNamed:"velocity_button")
+    
+    let certainDeathButton = SKSpriteNode(imageNamed:"skull_button")
+    
+    let hardResetButton = SKSpriteNode(imageNamed:"small_reset")
+    
+    var isPlaying = false
+    
+    //Shares touch to "buttons"-KC
+    
+    var buttonTrigger: SKNode!
+    
+    var resultsLabel = SKLabelNode()
+    
+    var highScore = SKLabelNode()
+    
+    var highScoreDistance = 0
+    
+    //Used to calculate distance traveled-KC
+    var manInitialPosition: CGPoint!
+    
+    //Air Time implementation
+    var airtime = 0.0
+    
+    var airTimeLabel = SKLabelNode()
+    
+    var longestAirTimeLabel = SKLabelNode()
+    
+    var longestAirTime = 0.0
+    
+    var effectLabel = SKLabelNode()
     
     
-    required init?(coder aDecoder: NSCoder) {
-        super.init(coder: aDecoder)
+    //No idea what these do, got it from the Flappy Bird source code
+    let manCategory: UInt32 = 1 << 0
+    let worldCategory: UInt32 = 1 << 0
+    let scoreCategory: UInt32 = 1 << 3
+    
+    override func didMoveToView(view: SKView) {
+        
+        
+        
+        //Button setup-KC
+        
+        resetButton.position = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame) + 10)
+        
+        resetButton.size = CGSizeMake(260, 60)
+        
+        resetButton.name = "resetButton"
+        
+        self.addChild(resetButton)
+        
+        resetButton.hidden = true
+        
+        
+        playButton.position = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame))
+        
+        playButton.name = "playButton"
+        
+        playButton.zPosition = 0
+        
+        self.addChild(playButton)
+        
+        
+        gravityButton.position = CGPointMake(CGRectGetMinX(frame) + 50, CGRectGetMinY(frame) + 33)
+        
+        gravityButton.size = CGSizeMake(50, 50)
+        
+        gravityButton.name = "gravityButton"
+        
+        self.addChild(gravityButton)
+        
+        gravityButton.hidden = false
+        
+        
+        velocityButton.position = CGPointMake(CGRectGetMinX(frame) + 120, CGRectGetMinY(frame) + 33)
+        
+        velocityButton.size = CGSizeMake(50, 50)
+        
+        velocityButton.name = "velocityButton"
+        
+        self.addChild(velocityButton)
+        
+        velocityButton.hidden = false
+        
+        
+        certainDeathButton.position = CGPointMake(CGRectGetMaxX(frame) - 50, CGRectGetMaxY(frame) - 40)
+        
+        certainDeathButton.size = CGSizeMake(50, 50)
+        
+        certainDeathButton.name = "certainDeathButton"
+        
+        self.addChild(certainDeathButton)
+        
+        certainDeathButton.hidden = true
+        
+        
+        hardResetButton.position = CGPointMake(CGRectGetMaxX(frame) - 50, CGRectGetMinY(frame) + 33)
+        
+        hardResetButton.size = CGSizeMake(50, 50)
+        
+        hardResetButton.name = "hardResetButton"
+        
+        self.addChild(hardResetButton)
+        
+        hardResetButton.hidden = true
+        
+        
+        //Label Setup-KC
+        
+        resultsLabel.position = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame) + 40)
+        resultsLabel.text = ""
+        self.addChild(resultsLabel)
+        resultsLabel.hidden = true
+        
+        //highScore.position = CGPoint(x:130, y: 380)
+        highScore.position = CGPointMake(CGRectGetMinX(frame) + 120, CGRectGetMaxY(frame) - 40)
+        self.addChild(highScore)
+        highScore.hidden = false
+        
+        //longestAirTimeLabel.position = CGPoint(x:330, y: 380)
+        longestAirTimeLabel.position = CGPointMake(CGRectGetMinX(frame) + 320, CGRectGetMaxY(frame) - 40)
+        self.addChild(longestAirTimeLabel)
+        longestAirTimeLabel.hidden = false
+        
+        
+        airTimeLabel.position = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame) - 45)
+        airTimeLabel.text = ""
+        self.addChild(airTimeLabel)
+        airTimeLabel.hidden = true
+        
+        //effectLabel.position = CGPoint(x:580, y: 360)
+        effectLabel.position = CGPointMake(CGRectGetMinX(frame) + 520, CGRectGetMaxY(frame) - 40)
+        self.addChild(effectLabel)
+        effectLabel.hidden = true
+        
+        startPhysics()
+        
+        
     }
     
-    override init(size: CGSize) {
-        super.init(size: size)
-        backgroundColor = SKColor.blackColor()
-        
-        scaleFactor = self.size.width / 320.0
-        
-        // Create the game nodes
-        // Background
-//        backgroundNode = createBackgroundNode()
-//        addChild(backgroundNode)
-        
-        // Foreground
-        foregroundNode = SKNode()
-        addChild(foregroundNode)
-        
-        // Add the player
-        player = createPlayer()
-        foregroundNode.addChild(player)
-        
-        // Add some gravity
-        physicsWorld.gravity = CGVector(dx: 0.0, dy: -2.0)
-        
-        // HUD
-        hudNode = SKNode()
-        addChild(hudNode)
-        
-        // Tap to Start
-        tapToStartNode.position = CGPoint(x: self.size.width / 2, y: 180.0)
-        hudNode.addChild(tapToStartNode)
-        
-        let platform = createPlatformAtPosition(CGPoint(x: CGRectGetMidX(self.frame), y: CGRectGetMidY(self.frame)), ofType: .Normal)
-        foregroundNode.addChild(platform)
-    }
     
-//    func createBackgroundNode() -> SKNode {
-//        // 1
-//        // Create the node
-//        let backgroundNode = SKNode()
-//        let ySpacing = 64.0 * scaleFactor
-//        
-//        // 2
-//        // Go through images until the entire background is built
-//        for index in 0...19 {
-//            // 3
-//            let node = SKSpriteNode(imageNamed:String(format: "Background%02d", index + 1))
-//            // 4
-//            node.setScale(scaleFactor)
-//            node.anchorPoint = CGPoint(x: 0.5, y: 0.0)
-//            node.position = CGPoint(x: self.size.width / 2, y: ySpacing * CGFloat(index))
-//            //5
-//            backgroundNode.addChild(node)
-//        }
-//        
-//        // 6
-//        // Return the completed background node
-//        return backgroundNode
-//    }
-    
-    func createPlayer() -> SKNode {
-        let playerNode = SKNode()
-        playerNode.position = CGPoint(x: self.size.width / 2, y: 80.0)
+    func didBeginContact(contact: SKPhysicsContact) {
         
-        let sprite = SKSpriteNode(imageNamed: "man1")
-        playerNode.addChild(sprite)
+        man.physicsBody?.collisionBitMask = worldCategory
         
-        // 1
-        playerNode.physicsBody = SKPhysicsBody(circleOfRadius: sprite.size.width / 2)
-        // 2
-        playerNode.physicsBody?.dynamic = false
-        // 3
-        playerNode.physicsBody?.allowsRotation = false
-        // 4
- 
-        playerNode.physicsBody?.restitution = 2.0
-        playerNode.physicsBody?.friction = 1.0
-        playerNode.physicsBody?.angularDamping = 10.0
-        playerNode.physicsBody?.linearDamping = 0.0
-        
-        // 1
-        playerNode.physicsBody?.usesPreciseCollisionDetection = true
-        // 2
-        playerNode.physicsBody?.categoryBitMask = CollisionCategoryBitmask.Player
-        // 3
-        playerNode.physicsBody?.collisionBitMask = 0
-        // 4
-        playerNode.physicsBody?.contactTestBitMask = CollisionCategoryBitmask.Star | CollisionCategoryBitmask.Platform
-        
-        return playerNode
-    }
-    
-    func createPlatformAtPosition(position: CGPoint, ofType type: PlatformType) -> PlatformNode {
-        // 1
-        let node = PlatformNode()
-        let thePosition = CGPoint(x: position.x * scaleFactor, y: position.y)
-        node.position = thePosition
-        node.name = "NODE_PLATFORM"
-        node.platformType = type
-        
-        // 2
-        var sprite: SKSpriteNode
-        if type == .Break {
-            sprite = SKSpriteNode(imageNamed: "Spaceship")
-        } else {
-            sprite = SKSpriteNode(imageNamed: "Spaceship")
+        if playButton.hidden == true {
+            moving.speed = 0
+            
+            self.removeActionForKey("flash")
+            self.runAction(SKAction.sequence([SKAction.repeatAction(SKAction.sequence([SKAction.runBlock({
+                self.backgroundColor = SKColor(red: 1, green: 0, blue: 0, alpha: 1.0)
+            }),SKAction.waitForDuration(NSTimeInterval(0.05)), SKAction.runBlock({
+                self.backgroundColor = self.skyColor
+            }), SKAction.waitForDuration(NSTimeInterval(0.05))]), count:4), SKAction.runBlock({
+                self.canRestart = true
+            })]), withKey: "flash")
+            
+            man.removeAllActions()
+            
+            //Present reset after collision-KC
+            
+            resetButton.hidden = false
+            
+            //Displays Distance-KC
+            
+            updateDistance()
+            
+            //Stop counting airtime-KC
+            
+            airTimer.invalidate()
+            
+            print ("collision")
+            
         }
-        node.addChild(sprite)
         
-        // 3
-        node.physicsBody = SKPhysicsBody(rectangleOfSize: sprite.size)
-        node.physicsBody?.dynamic = false
-        node.physicsBody?.categoryBitMask = CollisionCategoryBitmask.Platform
-        node.physicsBody?.collisionBitMask = 0
         
-        return node
     }
-    
     
     override func touchesBegan(touches: Set<UITouch>, withEvent event: UIEvent?) {
-        // 1
-        // If we're already playing, ignore touches
-        if player.physicsBody!.dynamic {
-            return
+        
+        print("At touch start \(xForceToApply), \(yForceToApply)")
+        
+        //listens for touch to make nodes as buttons work-KC
+        
+        let touch = touches.first! as UITouch
+        
+        let location = touch.locationInNode(self)
+        
+        let node = self.nodeAtPoint(location)
+        
+        //Pushes to property-KC
+        
+        buttonTrigger = node
+        
+        
+        //Trigger button implementations based on tap-KC
+        
+        if let nodeWithValue = buttonTrigger.name{
+            
+            print(nodeWithValue)
+            
+            
+            if nodeWithValue == "resetButton" {
+                resetMegaPosition()
+            }
+            
+            if nodeWithValue == "playButton" {
+                allowGameToStart()
+            }
+            
+            if nodeWithValue == "velocityButton" {
+                
+                adjustVelocity()
+                
+            }
+            
+            if nodeWithValue == "gravityButton" {
+                
+                adjustGravity()
+                
+            }
+            
+            if nodeWithValue == "certainDeathButton"{
+                
+                applyCertainDeath()
+                
+            }
+            
+            if nodeWithValue == "hardResetButton"{
+                
+                resetMegaPosition()
+                
+            }
         }
         
-        // 2
-        // Remove the Tap to Start node
-        tapToStartNode.removeFromParent()
+        //playButton.removeFromParent()
         
-        // 3
-        // Start the player by putting them into the physics simulation
-        player.physicsBody?.dynamic = true
         
-        // 4
-         player.physicsBody?.velocity = CGVector(dx: player.physicsBody!.velocity.dx, dy: 400.0)
+        //Timer fires for as long as touch is held in order to decrement velocity-KC
+        
+        speedTimer = NSTimer.scheduledTimerWithTimeInterval(1, target: self, selector: #selector(decrementRunningVelocity), userInfo: nil, repeats: true)
+        
+        animateGround(groundVelocity)
+        walkingMan(runningVelocity)
+        
+        
+        
+        
     }
     
-
- 
-
+    override func touchesEnded(touches: Set<UITouch>, withEvent event: UIEvent?) {
+        
+        //Attempt to disable jump after reset-KC
+        
+        if isPlaying == true {
+            
+            //Dividing to have current velocity impact impulse force-KC
+            
+            xForceToApply /= runningVelocity * 5
+            yForceToApply /= runningVelocity * 9
+            
+            man.physicsBody?.velocity = CGVector(dx: xVelocity, dy: yVelocity)
+            
+            print("\(xForceToApply), \(yForceToApply)")
+            
+            //Uses xForce and yForce properties as arguments-KC
+            
+            man.physicsBody?.applyImpulse(CGVector(dx: xForceToApply, dy: yForceToApply))
+            
+            
+            
+            airTimer = NSTimer.scheduledTimerWithTimeInterval(0.1, target: self, selector: #selector(incrementAirTime), userInfo: nil, repeats: true)
+            airTimeLabel.hidden = false
+        }
+        //Stop Speeding up-KC
+        
+        speedTimer.invalidate()
+        
+        //Easter Egg
+        
+        
+        
+        if let nodeWithValue = buttonTrigger.name{
+            
+            print(nodeWithValue)
+            
+            print(touchLength)
+            
+            if nodeWithValue == "velocityButton" && touchLength >= 5 {
+                
+                certainDeathButton.hidden = false
+                
+            }
+        }
+        
+        
+        if ((man.physicsBody?.collisionBitMask = worldCategory) != nil) {
+            let anim = SKAction.animateWithTextures([SKTexture(imageNamed:"man6")], timePerFrame: 0.1)
+            let run = SKAction.repeatAction(anim, count: 5)
+            man.runAction(run)
+        }
+        
+    }
     
+    func walkingMan(runningRate: Double) {
+        let anim = SKAction.animateWithTextures([SKTexture(imageNamed:"man1"), SKTexture(imageNamed:"man2"), SKTexture(imageNamed:"man3"), SKTexture(imageNamed:"man4")], timePerFrame: runningRate)
+        let run = SKAction.repeatActionForever(anim)
+        man.runAction(run)
+    }
+    
+    func animateGround(runningRate: Double) {
+        let moveGroundsprite = SKAction.moveByX(-groundTexture.size().width * 2.0, y: 0, duration: NSTimeInterval(runningRate * Double(groundTexture.size().width / 2))) //So this is just a formula for how fast the groundtexture moves accross the scene
+        let resetGroundSprite = SKAction.moveByX(groundTexture.size().width * 2.0, y: 0, duration: 0.0) //Creates a new sprite at the old sprites position - I think
+        
+        let moveGroundSpritesForever = SKAction.repeatActionForever(SKAction.sequence([moveGroundsprite, resetGroundSprite]))  //Takes both sequences and repeats them forever
+        
+        var i = CGFloat(0.0)
+        
+        let lessThanValue = 2.0 + self.frame.size.width / (groundTexture.size().width)
+        
+        while i < lessThanValue {
+            let sprite = SKSpriteNode(texture: groundTexture)
+            sprite.position = CGPoint(x: i * sprite.size.width, y: sprite.size.height / 4) //Creates a sprite for the ground the width of the sprite picture, with the height of the picture divided by 2
+            sprite.runAction(moveGroundSpritesForever)
+            moving.addChild(sprite)
+            i += 1
+        }
+    }
+    
+    //Allows timer to adjust running and ground velocity based on held touch-KC
+    
+    func decrementRunningVelocity(){
+        if runningVelocity > 0.2 && groundVelocity > 0.1{
+            
+            runningVelocity -= 0.1
+            groundVelocity -= 0.05
+            print(runningVelocity)
+            walkingMan(runningVelocity)
+            animateGround(groundVelocity)
+            
+        }
+        
+        //Used for easter egg
+        
+        touchLength += 1
+    }
+    
+    //Resets for new jump-KC
+    
+    func resetMegaPosition(){
+        
+        self.removeAllChildren()
+        didMoveToView(self.view!)
+        //certainDeathButton.hidden = false
+        runningVelocity = 0.4
+        groundVelocity = 0.2
+        xForceToApply = 50.0
+        yForceToApply = 300.0
+        xGravity = 0.0
+        yGravity = -9.8
+        self.canRestart = false
+        isPlaying = false
+        playButton.hidden = false
+        effectLabel.hidden = false
+        touchLength = 0.0
+        
+        if airtime > 0.0 {
+            
+            airTimer.invalidate()
+            
+        }
+        airtime = 0.0
+        print("After reset \(xForceToApply), \(yForceToApply)")
+        
+    }
+    
+    //Play button implementation-KC
+    
+    func allowGameToStart() {
+        playButton.hidden = true
+        isPlaying = true
+        gravityButton.hidden = false
+        velocityButton.hidden = false
+        hardResetButton.hidden = false
+    }
+    
+    func updateDistance() {
+        let manFinalPosition = man.position
+        
+        
+        //Using 5 to convert to "feet"-KC
+        
+        let manDistance = (manFinalPosition.x - manInitialPosition.x) / 5
+        
+        let manDistanceInFeet = Int(manDistance)
+        
+        if manDistanceInFeet > highScoreDistance {
+            highScoreDistance = manDistanceInFeet
+            highScore.text = "High Score: \(highScoreDistance)"
+        }
+        
+        resultsLabel.text = "You jumped \(manDistanceInFeet)ft!"
+        resultsLabel.hidden = false
+        
+        if airtime > longestAirTime {
+            longestAirTime = airtime
+            longestAirTimeLabel.text = "Best Air: \(longestAirTime)"
+        }
+        
+        
+    }
+    
+    func incrementAirTime(){
+        
+        airtime += 0.1
+        airTimeLabel.text = "Air Time: \(airtime)"
+        
+    }
+    
+    func adjustGravity(){
+        
+        effectLabel.hidden = false
+        
+        let reverseGravity = CGVector(dx: 0.0, dy: 2.0)
+        let noGravity = CGVector(dx: 0.0, dy: 0.0)
+        let halfGravity = CGVector(dx: 0.0, dy: -4.9)
+        let earthGravity = CGVector(dx: 0.0, dy: -9.8)
+        
+        
+        let gravityArray = [reverseGravity, noGravity, halfGravity,earthGravity]
+        
+        if gravityCounter == 4 {
+            
+            gravityCounter = 0
+            
+        }
+        
+        if gravityCounter == 3 {
+            
+            effectLabel.text = ""
+            
+            
+        } else {
+            
+            effectLabel.text = "Gravity: \(gravityCounter + 1)"
+            
+        }
+        
+        self.physicsWorld.gravity = gravityArray[gravityCounter]
+        
+        gravityCounter += 1
+        
+        hardResetButton.hidden = false
+        
+    }
+    
+    func adjustVelocity(){
+        
+        effectLabel.hidden = false
+        
+        if xVelocity == 0 {
+            
+            xVelocity = 600
+            
+            xForceToApply = 0
+            yForceToApply = 0
+            
+            effectLabel.text = "Velocity!!"
+            
+        }else{
+            
+            xVelocity = 0
+            
+            effectLabel.text = ""
+        }
+        
+        hardResetButton.hidden = false
+        
+    }
+    
+    func applyCertainDeath() {
+        
+        self.physicsWorld.gravity = CGVector(dx: -5.0, dy: -9.8)
+        
+        hardResetButton.hidden = false
+        
+    }
+    
+    
+    func startPhysics(){
+        
+        //Setup physics - What is contact delegate?  Objects in the scene?
+        self.physicsWorld.gravity = CGVector(dx: xGravity, dy: yGravity)
+        self.physicsWorld.contactDelegate = self
+        
+        //Color for the sky, essentially background color
+        skyColor = SKColor(red: 81.0/255.0, green: 192.0/255.0, blue: 201.0/255.0, alpha: 1.0) //Alpha is what again?
+        self.backgroundColor = skyColor //backgroundColor is an inherent property on GameScene
+        
+        moving = SKNode() //Initializes moving with a default value
+        self.addChild(moving) //Adds a child node to the end of the reciever's list of child nodes?  That's the description - but what exactly does that mean?  Seems as if it adds the object into the scene to be displayed
+        
+        moving.zPosition = -1
+        
+        groundTexture.filteringMode = .Nearest //No idea what this does - something with size?  Compatability?
+        
+        
+        
+        //Essentially creates the loop to repeat the ground action as long as the lessThanValue is true
+        //What is the lessThanValue?  No idea - Going to try and add the megaman sprite here and see if it loops
+        
+        
+        //Attatching the physics properties/methods to megaMan
+        
+        let moveGroundsprite = SKAction.moveByX(-groundTexture.size().width * 2.0, y: 0, duration: 0.0) //So this is just a formula for how fast the groundtexture moves accross the scene
+        let resetGroundSprite = SKAction.moveByX(groundTexture.size().width * 2.0, y: 0, duration: 0.0) //Creates a new sprite at the old sprites position - I think
+        
+        let makeGround = SKAction.repeatAction(SKAction.sequence([moveGroundsprite, resetGroundSprite]), count: 0)  //Takes both sequences and repeats them forever
+        
+        var i = CGFloat(0.0)
+        
+        let lessThanValue = 2.0 + self.frame.size.width / (groundTexture.size().width)
+        
+        while i < lessThanValue {
+            let sprite = SKSpriteNode(texture: groundTexture)
+            sprite.position = CGPoint(x: i * sprite.size.width, y: sprite.size.height / 4) //Creates a sprite for the ground the width of the sprite picture, with the height of the picture divided by 2
+            sprite.runAction(makeGround)
+            moving.addChild(sprite)
+            i += 1
+        }
+        
+        man = SKSpriteNode(texture: SKTexture(imageNamed: "man5"))
+        
+        man.zPosition = 1
+        man.setScale(0.8)
+        man.position = CGPoint(x: self.frame.size.width * 0.15, y: groundTexture.size().height + 0.5)
+        
+        
+        man.physicsBody = SKPhysicsBody(circleOfRadius: man.size.height / 2.0)
+        man.physicsBody?.dynamic = true
+        man.physicsBody?.allowsRotation = false
+        
+        
+        man.physicsBody?.categoryBitMask = manCategory
+        man.physicsBody?.collisionBitMask = worldCategory
+        man.physicsBody?.contactTestBitMask = worldCategory
+        
+        self.addChild(man)
+        
+        //Creating the ground, for contact I guess?
+        let ground = SKNode()
+        
+        ground.position = CGPoint(x: 0, y: groundTexture.size().height / 16)
+        ground.physicsBody = SKPhysicsBody(rectangleOfSize: CGSize(width: self.frame.size.width * 4, height: groundTexture.size().height))
+        ground.physicsBody?.dynamic = false
+        ground.physicsBody?.categoryBitMask = worldCategory
+        self.addChild(ground)
+        
+        //Storing initial position for distance-KC
+        
+        manInitialPosition = man.position
+    }
     
 }
 
-//         IMPLEMENTATION OF THE SPRITE - DOESNT COMPILE AS OF YET
-//        var player: Player
-//
-//        override init(size: CGSize) {
-//            self.player = Player(imageName: "man1")
-//            super.init(size: size)
-//
-//        }
-//
-//    required init?(coder aDecoder: NSCoder) {
-//        fatalError("init(coder:) has not been implemented")
-//    }
-//
-//
-//
-//
-//
-//    override func didMoveToView(view: SKView) {
-//        /* Setup your scene here */
-//        backgroundColor = (UIColor.grayColor())
-//
-//
-//        player.animatePlayerSprite()
-//
-//        megaManWalking = player.walkFrames
-//
-//        let firstFrame = megaManWalking[0]
-//        megaMan = SKSpriteNode(texture: firstFrame)
-//        megaMan.position = CGPoint(x:CGRectGetMinX(self.frame), y:CGRectGetMinY(self.frame))
-//        addChild(megaMan)
-//
-//        let skView = self.view
-//
-//        skView?.showsNodeCount = true
-//
-//        let scene = GameScene(size: skView!.bounds.size)
-//
-//        scene.scaleMode = .AspectFit
-//
-//        skView?.presentScene(scene)
-//
-//
-//        walkingMan()
-//
-//    }
-//
-//
-//
-//    func walkingMan() {
-//        megaMan.runAction(SKAction.repeatActionForever(
-//            SKAction.animateWithTextures(megaManWalking,
-//                timePerFrame: 0.15,
-//                resize: false,
-//                restore: true)),
-//                          withKey:"walkingInPlaceMan")
-//    }
-//
-//    override func update(currentTime: CFTimeInterval) {
-//        /* Called before each frame is rendered */
-//    }
 
 
 
-//import Foundation
-//import SpriteKit
-//
-//class GameLevelScene: SKScene {
-//    var map : JSTileMap
-//    var player: Player
-//    var previousUpdateTime: NSTimeInterval = 0.0
-//    var walls: TMXLayer
-//    override init(size: CGSize) {
-//        self.map = JSTileMap(named: "level1.tmx")
-//        self.player = Player(imageNamed: "koalio_stand")
-//        self.walls = map.layerNamed("walls")
-//        super.init(size: size)
-//        
-//        self.backgroundColor = SKColor(red: 0.4, green: 0.4, blue: 0.95, alpha: 1.0)
-//        self.addChild(self.map)
-//        
-//        self.player.position = CGPointMake(100, 50)
-//        self.player.zPosition = 15
-//        self.map.addChild(self.player)
-//        
-//        self.userInteractionEnabled = true
-//    }
-//    
-//    required init?(coder aDecoder: NSCoder) {
-//        fatalError("init(coder:) has not been implemented")
-//    }
-//    
-//    override func update(currentTime: NSTimeInterval) {
-//        var delta = currentTime - self.previousUpdateTime
-//        if delta > 0.02 {
-//            delta = 0.02
-//        }
-//        
-//        self.previousUpdateTime = currentTime
-//        self.player.update(delta)
-//        
-//        self.checkForAndResolveCollisionsForPlayer(player, layer: walls)
-//        self.setViewpointCenter(self.player.position)
-//    }
-//    
-//    func tileRectFromTileCoords(coords: CGPoint) -> CGRect {
-//        let levelHeight = self.map.mapSize.height * self.map.tileSize.height
-//        let origin = CGPointMake(coords.x * self.map.tileSize.width, levelHeight - ((coords.y + 1) * (self.map.tileSize.height)))
-//        return CGRectMake(origin.x, origin.y, self.map.tileSize.width, self.map.tileSize.height)
-//    }
-//    
-//    func tileGIDAtCoordinate(coord: CGPoint, layer: TMXLayer) -> Int {
-//        let info = layer.layerInfo
-//        return info.tileGidAtCoord(coord)
-//    }
-//    
-//    func checkForAndResolveCollisionsForPlayer(player: Player, layer: TMXLayer) {
-//        player.onGround = false
-//        for index in [7, 1, 3, 5, 0, 2, 6, 8] {
-//            let playerBox = player.collisionBoundingBox()
-//            let playerCoord = layer.coordForPoint(player.desiredPosition)
-//            
-//            let column = index % 3
-//            let row = index / 3
-//            let tileCoord = CGPointMake(playerCoord.x + CGFloat(column - 1), playerCoord.y + CGFloat(row - 1))
-//            let gid = self.tileGIDAtCoordinate(tileCoord, layer: layer)
-//            if (gid > 0) {
-//                let tileRect = self.tileRectFromTileCoords(tileCoord)
-//                
-//                if (CGRectIntersectsRect(playerBox, tileRect)) {
-//                    let intersection = CGRectIntersection(playerBox, tileRect).size
-//                    switch(index) {
-//                    case 7:
-//                        player.desiredPosition = CGPointMake(player.desiredPosition.x, player.desiredPosition.y + intersection.height)
-//                        player.velocity = CGPointMake(player.velocity.x, 0.0)
-//                        player.onGround = true
-//                    case 1:
-//                        player.desiredPosition = CGPointMake(player.desiredPosition.x, player.desiredPosition.y - intersection.height)
-//                    case 3:
-//                        player.desiredPosition = CGPointMake(player.desiredPosition.x + intersection.width, player.desiredPosition.y)
-//                    case 5:
-//                        player.desiredPosition = CGPointMake(player.desiredPosition.x - intersection.width, player.desiredPosition.y)
-//                    default:
-//                        if (intersection.width > intersection.height) {
-//                            player.velocity = CGPointMake(player.velocity.x, 0.0)
-//                            var height = intersection.height
-//                            if index > 4 {
-//                                player.onGround = true
-//                            } else {
-//                                height *= -1
-//                            }
-//                            player.desiredPosition = CGPointMake(player.desiredPosition.x, player.desiredPosition.y + height)
-//                        } else {
-//                            let width = index == 6 || index == 0 ? intersection.width : -intersection.width
-//                            player.desiredPosition = CGPointMake(player.desiredPosition.x  + width, player.desiredPosition.y)
-//                        }
-//                    }
-//                    
-//                }
-//            }
-//        }
-//        player.position = player.desiredPosition
-//    }
-//    
-//    func setViewpointCenter(center: CGPoint) {
-//        var x = max(center.x, self.size.width / 2)
-//        var y = max(center.y, self.size.height / 2)
-//        
-//        x = min(x, (self.map.mapSize.width * self.map.tileSize.width) - self.size.width / 2)
-//        y = min(y, (self.map.mapSize.height * self.map.tileSize.height) - self.size.height / 2)
-//        
-//        let position = CGPointMake(x, y)
-//        let center = CGPointMake(self.size.width / 2, self.size.height / 2)
-//        let viewPoint = CGPointSubtract(center, position)
-//        self.map.position = viewPoint
-//    }
-//    
-//    override func touchesBegan(touches: Set<UITouch>, withEvent event: UIEvent?) {
-//        for touchObject in touches {
-//            let touch = touchObject
-//            let location = touch.locationInNode(self)
-//            if location.x < self.size.width / 2 {
-//                self.player.moving = true
-//            } else {
-//                self.player.jumping = true
-//            }
-//        }
-//    }
-//    
-//    override func touchesMoved(touches: Set<UITouch>, withEvent event: UIEvent?) {
-//        let halfWidth = self.size.width / 2.0
-//        for touchObject in touches {
-//            let touch = touchObject
-//            let location = touch.locationInNode(self)
-//            
-//            let previousLocation = touch.previousLocationInNode(self)
-//            if location.x > halfWidth && previousLocation.x <= halfWidth {
-//                self.player.moving = false
-//                self.player.jumping = true
-//            } else if previousLocation.x > halfWidth && location.x <= halfWidth {
-//                self.player.moving = true
-//                self.player.jumping = false
-//            }
-//        }
-//    }
-//    
-//    override func touchesEnded(touches: Set<UITouch>, withEvent event: UIEvent?) {
-//        for touchObject in touches {
-//            let touch = touchObject
-//            let location = touch.locationInNode(self)
-//            if location.x < self.size.width / 2.0 {
-//                self.player.moving = false
-//            } else {
-//                self.player.jumping = false
-//            }
-//        }
-//    }
-//    
 
