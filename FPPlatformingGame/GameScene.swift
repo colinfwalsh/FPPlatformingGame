@@ -12,6 +12,8 @@ import SpriteKit
 class GameScene: SKScene, SKPhysicsContactDelegate {
     
     var man: SKSpriteNode!
+    var ground: SKSpriteNode!
+    
     
     var manRunning: SKAction!
     
@@ -21,7 +23,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     
     var distanceTraveled: CGFloat!
     
-    let playButton = SKSpriteNode(imageNamed:"play")
+    let playButton = SKSpriteNode(imageNamed:"flatironmanlogo")
     
     let groundTexture = SKTexture(imageNamed: "land")
     
@@ -47,6 +49,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         playButton.position = CGPointMake(CGRectGetMidX(frame), CGRectGetMidY(frame))
         self.addChild(playButton)
         
+        playButton.zPosition = 0
         
         
         //Setup physics - What is contact delegate?  Objects in the scene?
@@ -62,13 +65,30 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         groundTexture.filteringMode = .Nearest //No idea what this does - something with size?  Compatability?
         
-        runningVelocity = 0.1
+        let moveGroundsprite = SKAction.moveByX(-groundTexture.size().width * 2.0, y: 0, duration: 0.0) //So this is just a formula for how fast the groundtexture moves accross the scene
+        let resetGroundSprite = SKAction.moveByX(groundTexture.size().width * 2.0, y: 0, duration: 0.0) //Creates a new sprite at the old sprites position - I think
         
-        animateGround(runningVelocity)
+        let makeGround = SKAction.repeatAction(SKAction.sequence([moveGroundsprite, resetGroundSprite]) , count: 0) //Takes both sequences and repeats them forever
+        
+        var i = CGFloat(0.0)
+        
+        let lessThanValue = 2.0 + self.frame.size.width / (groundTexture.size().width)
+        
+        while i < lessThanValue {
+            let sprite = SKSpriteNode(texture: groundTexture)
+            sprite.position = CGPoint(x: i * sprite.size.width, y: sprite.size.height / 4) //Creates a sprite for the ground the width of the sprite picture, with the height of the picture divided by 2
+            sprite.runAction(makeGround)
+            moving.addChild(sprite)
+            moving.zPosition = -1
+            i += 1
+        }
+        
         
         
         //Essentially creates the loop to repeat the ground action as long as the lessThanValue is true
         //What is the lessThanValue?  No idea - Going to try and add the megaman sprite here and see if it loops
+        
+        
         
         
         //Attatching the physics properties/methods to megaMan
@@ -91,18 +111,18 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         self.addChild(man)
         
         //Creating the ground, for contact I guess?
-        let ground = SKNode()
+        let groundNode = SKNode()
         
-        ground.position = CGPoint(x: 0, y: groundTexture.size().height / 16)
-        ground.physicsBody = SKPhysicsBody(rectangleOfSize: CGSize(width: self.frame.size.width, height: groundTexture.size().height))
-        ground.physicsBody?.dynamic = false
-        ground.physicsBody?.categoryBitMask = worldCategory
-        self.addChild(ground)
+        groundNode.position = CGPoint(x: 0, y: groundTexture.size().height / 16)
+        groundNode.physicsBody = SKPhysicsBody(rectangleOfSize: CGSize(width: self.frame.size.width, height: groundTexture.size().height))
+        groundNode.physicsBody?.dynamic = false
+        groundNode.physicsBody?.categoryBitMask = worldCategory
+        self.addChild(groundNode)
     }
     
     
     func didBeginContact(contact: SKPhysicsContact) {
-        
+        self.view
         var hasPlayButton = false
         
         for child in self.children {
