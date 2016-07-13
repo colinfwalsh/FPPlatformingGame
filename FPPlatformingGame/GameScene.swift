@@ -306,7 +306,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         //Timer fires for as long as touch is held in order to decrement velocity-KC
         
-        speedTimer = NSTimer.scheduledTimerWithTimeInterval(1, target: self, selector: #selector(decrementRunningVelocity), userInfo: nil, repeats: true)
+        speedTimer = NSTimer.scheduledTimerWithTimeInterval(0.5, target: self, selector: #selector(decrementRunningVelocity), userInfo: nil, repeats: true)
         
         animateGround(groundVelocity)
         walkingMan(runningVelocity)
@@ -398,14 +398,29 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     //Allows timer to adjust running and ground velocity based on held touch-KC
     
     func decrementRunningVelocity(){
-        if runningVelocity > 0.2 && groundVelocity > 0.1{
+        if runningVelocity > 0.15 {
             
-            runningVelocity -= 0.1
-            groundVelocity -= 0.05
-            print(runningVelocity)
+            runningVelocity -= 0.05
+            
+            
             walkingMan(runningVelocity)
-            animateGround(groundVelocity)
             
+            print("Run \(runningVelocity)")
+            
+            
+        }
+        
+        if groundVelocity > 0.1 {
+            
+            groundVelocity -= 0.05
+            animateGround(groundVelocity)
+            print("Ground \(groundVelocity)")
+        }
+        
+        if groundVelocity == 0.05 {
+            groundVelocity = 0.025
+            animateGround(groundVelocity)
+            print("Ground \(groundVelocity)")
         }
         
         //Used for easter egg
