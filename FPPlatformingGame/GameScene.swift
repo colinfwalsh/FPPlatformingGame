@@ -269,10 +269,12 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             
             
             if nodeWithValue == "resetButton" {
+                
                 resetMegaPosition()
             }
             
             if nodeWithValue == "playButton" {
+                
                 allowGameToStart()
             }
             
@@ -311,9 +313,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         animateGround(groundVelocity)
         walkingMan(runningVelocity)
         
-        
-        
-        
     }
     
     override func touchesEnded(touches: Set<UITouch>, withEvent event: UIEvent?) {
@@ -336,17 +335,17 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
             man.physicsBody?.applyImpulse(CGVector(dx: xForceToApply, dy: yForceToApply))
             
             
-            
+            if xVelocity == 0 {
             airTimer = NSTimer.scheduledTimerWithTimeInterval(0.1, target: self, selector: #selector(incrementAirTime), userInfo: nil, repeats: true)
             airTimeLabel.hidden = false
+            }
         }
+        
         //Stop Speeding up-KC
         
         speedTimer.invalidate()
         
         //Easter Egg
-        
-        
         
         if let nodeWithValue = buttonTrigger.name{
             
@@ -434,7 +433,6 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         self.removeAllChildren()
         didMoveToView(self.view!)
-        //certainDeathButton.hidden = false
         runningVelocity = 0.4
         groundVelocity = 0.2
         xForceToApply = 50.0
@@ -487,7 +485,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         if airtime > longestAirTime {
             longestAirTime = airtime
-            longestAirTimeLabel.text = "Best Air: \(longestAirTime)"
+            longestAirTimeLabel.text = String.localizedStringWithFormat("Best Air: %.1f", longestAirTime)
         }
         
         
@@ -496,7 +494,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
     func incrementAirTime(){
         
         airtime += 0.1
-        airTimeLabel.text = "Air Time: \(airtime)"
+        airTimeLabel.text = String.localizedStringWithFormat("Air Time: %.1f", airtime)
         
     }
     
@@ -510,7 +508,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         let earthGravity = CGVector(dx: 0.0, dy: -9.8)
         
         
-        let gravityArray = [reverseGravity, noGravity, halfGravity,earthGravity]
+        let gravityArray = [reverseGravity, noGravity, halfGravity, earthGravity]
         
         if gravityCounter == 4 {
             
@@ -602,7 +600,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         var i = CGFloat(0.0)
         
-        let lessThanValue = 2.0 + self.frame.size.width / (groundTexture.size().width)
+        let lessThanValue = 2.0 + self.frame.size.width / (groundTexture.size().width / 2)
         
         while i < lessThanValue {
             let sprite = SKSpriteNode(texture: groundTexture)
@@ -630,7 +628,7 @@ class GameScene: SKScene, SKPhysicsContactDelegate {
         
         self.addChild(man)
         
-        //Creating the ground, for contact I guess?
+        //Creating the ground
         let ground = SKNode()
         
         ground.position = CGPoint(x: 0, y: groundTexture.size().height / 16)
